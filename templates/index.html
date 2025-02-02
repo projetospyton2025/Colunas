@@ -5,9 +5,10 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <!--<p>teste</p>-->
     <div class="container">
         <h1>Análise de Frequência por Posição - Mega Sena</h1>
+        
+        <!-- Controles principais -->
         <div class="controles">
             <div class="total-concursos">
                 <label>Total de Concursos:</label>
@@ -19,7 +20,8 @@
             </div>
             <button id="toggleTipo">Alternar Ordem</button>
         </div>
-        
+
+        <!-- Grid principal de frequências -->
         <div class="colunas">
             <div class="col-container">
                 <h3>1ª Posição</h3>
@@ -44,6 +46,30 @@
             <div class="col-container">
                 <h3>6ª Posição</h3>
                 <div id="col6" class="numeros"></div>
+            </div>
+        </div>
+
+        <!-- Últimos jogos -->
+        <div class="tabelas-container">
+            <div class="tabela-jogos">
+                <h3>Últimos Jogos (Ordem do Sorteio)</h3>
+                <div id="ultimosJogosSorteio" class="tabela"></div>
+            </div>
+            <div class="tabela-jogos">
+                <h3>Últimos Jogos (Ordem Crescente)</h3>
+                <div id="ultimosJogosCrescente" class="tabela"></div>
+            </div>
+        </div>
+
+        <!-- Estatísticas -->
+        <div class="estatisticas-container">
+            <h2>Estatísticas</h2>
+            <div class="matriz-frequencia" id="matrizFrequencia">
+                <!-- Preenchido via JavaScript -->
+            </div>
+            <div class="top10-geral">
+                <h3>Top 10 Geral</h3>
+                <div id="top10Geral"></div>
             </div>
         </div>
     </div>
