@@ -10,7 +10,7 @@ def get_all_results():
     try:
         url = "https://loteriascaixa-api.herokuapp.com/api/megasena"
         response = requests.get(url)
-        response.raise_for_status()  # Vai lançar exceção se não for 200
+        response.raise_for_status()
         return response.json()
     except Exception as e:
         print(f"Erro ao buscar dados da API: {str(e)}")
@@ -23,12 +23,10 @@ def index():
 @app.route('/api/dados/<tipo>')
 def get_dados(tipo):
     try:
-        # Busca dados
         resultados = get_all_results()
         if not resultados:
             return jsonify({"error": "Não foi possível obter dados da API"}), 500
 
-        # Contadores
         total_concursos = len(resultados)
         frequencias = {
             'col1': defaultdict(int),
@@ -44,18 +42,19 @@ def get_dados(tipo):
 
         # Processa cada resultado
         for resultado in resultados:
-            if tipo in resultado and resultado[tipo]:
-                numeros = [int(n) for n in resultado[tipo]]
-                numeros_ordenados = sorted(numeros)
+            if 'dezenasOrdemSorteio' in resultado:
+                # Converte números para inteiros
+                nums_sorteio = [int(n) for n in resultado['dezenasOrdemSorteio']]
+                nums_crescente = sorted(nums_sorteio)  # Ordena para ordem crescente
                 
-                # Guarda últimos jogos
-                ultimos_jogos_sorteio.append(numeros)
-                ultimos_jogos_crescente.append(numeros_ordenados)
+                # Guarda últimos jogos em ambas as ordens
+                ultimos_jogos_sorteio.append(nums_sorteio)
+                ultimos_jogos_crescente.append(nums_crescente)
                 
-                # Conta frequências
-                for pos, num in enumerate(numeros if tipo == 'dezenasOrdemSorteio' else numeros_ordenados):
-                    coluna = f'col{pos+1}'
-                    frequencias[coluna][num] += 1
+                # Conta frequências baseado no tipo solicitado
+                numeros = nums_sorteio if tipo == 'dezenasOrdemSorteio' else nums_crescente
+                for pos, num in enumerate(numeros):
+                    frequencias[f'col{pos+1}'][num] += 1
                     frequencia_geral[num] += 1
 
         # Processa top 10 por coluna
@@ -75,12 +74,16 @@ def get_dados(tipo):
             key=lambda x: (-x["frequencia"], x["numero"])
         )[:10]
 
+        # Inverte a ordem dos últimos jogos para mostrar mais recentes primeiro
+        ultimos_jogos_sorteio.reverse()
+        ultimos_jogos_crescente.reverse()
+
         return jsonify({
             "frequencias": top_frequencias,
             "totalConcursos": total_concursos,
             "ultimosJogos": {
-                "ordemSorteio": ultimos_jogos_sorteio[-10:],  # últimos 10 jogos
-                "ordemCrescente": ultimos_jogos_crescente[-10:]
+                "ordemSorteio": ultimos_jogos_sorteio[:10],
+                "ordemCrescente": ultimos_jogos_crescente[:10]
             },
             "top10Geral": top10_geral
         })

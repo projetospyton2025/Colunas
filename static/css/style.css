@@ -168,6 +168,10 @@ h1, h2, h3 {
     padding: 20px;
     color: #666;
 }
+pre{
+    text-align: center;
+    color: red;
+}
 
 /* Responsividade */
 @media (max-width: 768px) {
