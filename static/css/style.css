@@ -172,6 +172,24 @@ pre{
     text-align: center;
     color: red;
 }
+.instrucaoes{
+    background-color: #f9f9f9; /* Fundo cinza claro */
+    border-radius: 12px; /* Bordas arredondadas */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Sombra leve */
+    padding: 20px; /* Espaçamento interno */
+    text-align: left; /* Centraliza o texto */
+    font-family: Arial, sans-serif; /* Fonte padrão */
+    color: #333; /* Cor do texto */
+    line-height: 35px;
+}
+footer {
+    color: #161515;
+    text-align: center;
+    padding: 5px;
+    margin-bottom: auto;
+    margin-top: 10px; /* Espaço acima do rodapé */
+ }
+
 
 /* Responsividade */
 @media (max-width: 768px) {
