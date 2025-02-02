@@ -1,0 +1,19 @@
+Flask==2.0.1
+requests==2.26.0
+python-dotenv==0.19.0
+
+
+ Diretório: H:\Meu Drive\ProjetosPython\Loterias\Estratégias\Colunas
+
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+d-----        01/02/2025     16:18                Requisitos
+d-----        01/02/2025     16:41                static
+d-----        01/02/2025     16:41                templates
+d-----        01/02/2025     16:41                venv
+------        01/02/2025     16:18           1096 LICENSE
+------        01/02/2025     16:18            129 README.md
+------        01/02/2025     16:39           2111 colunas.ps1
+------        01/02/2025     16:41              0 app.py
+------        01/02/2025     16:42             58 requirements.txt

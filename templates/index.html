@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Análise Mega Sena - Frequência por Posição</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Análise de Frequência por Posição - Mega Sena</h1>
+        <div class="controles">
+            <div class="total-concursos">
+                <label>Total de Concursos:</label>
+                <input type="text" id="totalConcursos" readonly>
+            </div>
+            <div class="ordem-atual">
+                <span>Ordem atual: </span>
+                <span id="tipoOrdemAtual" class="ordem-destaque">Ordem do Sorteio</span>
+            </div>
+            <button id="toggleTipo">Alternar Ordem</button>
+        </div>
+        
+        <div class="colunas">
+            <div class="col-container">
+                <h3>1ª Posição</h3>
+                <div id="col1" class="numeros"></div>
+            </div>
+            <div class="col-container">
+                <h3>2ª Posição</h3>
+                <div id="col2" class="numeros"></div>
+            </div>
+            <div class="col-container">
+                <h3>3ª Posição</h3>
+                <div id="col3" class="numeros"></div>
+            </div>
+            <div class="col-container">
+                <h3>4ª Posição</h3>
+                <div id="col4" class="numeros"></div>
+            </div>
+            <div class="col-container">
+                <h3>5ª Posição</h3>
+                <div id="col5" class="numeros"></div>
+            </div>
+            <div class="col-container">
+                <h3>6ª Posição</h3>
+                <div id="col6" class="numeros"></div>
+            </div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
