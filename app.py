@@ -9,11 +9,28 @@ def get_all_results():
     """Busca todos os resultados da Mega Sena"""
     try:
         url = "https://loteriascaixa-api.herokuapp.com/api/megasena"
-        response = requests.get(url)
+        response = requests.get(url, timeout=10)  # Adicionado timeout
         response.raise_for_status()
-        return response.json()
-    except Exception as e:
+        dados = response.json()
+        
+        # Validação da resposta
+        if not isinstance(dados, list) or not dados:
+            print("Resposta da API em formato inválido")
+            return None
+            
+        # Ordena os resultados pelo número do concurso
+        dados_ordenados = sorted(dados, key=lambda x: int(x['concurso']), reverse=True)
+        print(f"Último concurso obtido: {dados_ordenados[0]['concurso']}")
+        
+        return dados_ordenados
+    except requests.exceptions.Timeout:
+        print("Timeout ao acessar a API")
+        return None
+    except requests.exceptions.RequestException as e:
         print(f"Erro ao buscar dados da API: {str(e)}")
+        return None
+    except ValueError as e:
+        print(f"Erro ao decodificar JSON: {str(e)}")
         return None
 
 @app.route('/')
@@ -25,9 +42,14 @@ def get_dados(tipo):
     try:
         resultados = get_all_results()
         if not resultados:
+            print("Nenhum resultado obtido da API")  # Adicionado log conforme codigo2
             return jsonify({"error": "Não foi possível obter dados da API"}), 500
 
         total_concursos = len(resultados)
+        
+        # Pega o último resultado conforme codigo2
+        ultimo_resultado = resultados[0] if resultados else None
+
         frequencias = {
             'col1': defaultdict(int),
             'col2': defaultdict(int),
@@ -85,7 +107,8 @@ def get_dados(tipo):
                 "ordemSorteio": ultimos_jogos_sorteio[:10],
                 "ordemCrescente": ultimos_jogos_crescente[:10]
             },
-            "top10Geral": top10_geral
+            "top10Geral": top10_geral,
+            "ultimoResultado": ultimo_resultado  # Adicionado último resultado conforme codigo2
         })
 
     except Exception as e:

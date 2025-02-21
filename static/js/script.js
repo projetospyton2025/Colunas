@@ -80,7 +80,7 @@ async function atualizarDados() {
     isLoading = true;
     atualizarBotao(true);
     
-    const elementosParaAtualizar = document.querySelectorAll('.numeros, .tabela, #top10Geral');
+    const elementosParaAtualizar = document.querySelectorAll('.numeros, .tabela, #top10Geral, #ultimoSorteio');
     elementosParaAtualizar.forEach(el => {
         el.innerHTML = '<div class="loading">Carregando dados...</div>';
     });
@@ -130,6 +130,18 @@ async function atualizarDados() {
             criarTop10Geral(data.top10Geral);
         }
 
+        // Atualiza último resultado
+        if (data.ultimoResultado) {
+            const ultimoSorteio = document.getElementById('ultimoSorteio');
+            const dataAtualizacao = document.getElementById('dataAtualizacao');
+            
+            ultimoSorteio.innerHTML = `
+                Concurso ${data.ultimoResultado.concurso}<br>
+                Números: ${data.ultimoResultado.dezenasOrdemSorteio.join(' - ')}
+            `;
+            
+            dataAtualizacao.textContent = `Última atualização: ${new Date().toLocaleString()}`;
+        }
     } catch (error) {
         console.error('Erro ao carregar dados:', error);
         elementosParaAtualizar.forEach(el => {
@@ -140,6 +152,14 @@ async function atualizarDados() {
         atualizarBotao(false);
     }
 }
+
+// Atualizar a cada 5 minutos
+setInterval(atualizarDados, 5 * 60 * 1000);
+
+// Chamar imediatamente quando a página carregar
+document.addEventListener('DOMContentLoaded', atualizarDados);
+
+
 
 // Inicialização e eventos
 document.addEventListener('DOMContentLoaded', () => {

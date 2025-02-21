@@ -1,0 +1,630 @@
+Flask==2.0.1
+Werkzeug==2.0.3
+requests==2.31.0
+python-dotenv==0.19.0
+
+# pip install Flask==2.0.1 Werkzeug==2.0.3 requests==2.31.0 python-dotenv==0.19.0
+
+
+
+#certifi            2025.1.31
+#charset-normalizer 3.4.1
+#click              8.1.8
+#colorama           0.4.6
+#Flask              2.0.1
+#idna               3.10
+#itsdangerous       2.2.0
+#Jinja2             3.1.5
+#MarkupSafe         3.0.2
+#pip                25.0.1
+#python-dotenv      0.19.0
+#requests           2.31.0
+#urllib3            2.3.0
+#Werkzeug           2.0.3
+
+
+
+ESTRUTURA..
+Diretório: J:\Meu DrIve\ProjetosPython\LoterIas\Estrategias\MegaSena\Colunas
+
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+d-----        21/02/2025     05:50                Requisitos
+d-----        01/02/2025     19:32                static
+d-----        21/02/2025     05:50                templates
+d-----        21/02/2025     05:27                .git
+d-----        03/02/2025     19:54                venv-python
+d-----        03/02/2025     19:58                venv-pypy
+d-----        20/02/2025     15:05                venv
+------        02/02/2025     12:51            127 README.md
+------        02/02/2025     12:51           1075 LICENSE
+------        02/02/2025     12:51              0 .env
+------        02/02/2025     12:51             17 .gitignore
+------        02/02/2025     12:51           3463 app.py
+------        21/02/2025     05:53            159 requirements.txt
+------        21/02/2025     05:49         946795 Colunas-main.zip
+
+
+
+from flask import Flask, render_template, jsonify
+import requests
+from collections import defaultdict
+import os
+
+app = Flask(__name__)
+
+def get_all_results():
+    """Busca todos os resultados da Mega Sena"""
+    try:
+        url = "https://loteriascaixa-api.herokuapp.com/api/megasena"
+        response = requests.get(url)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        print(f"Erro ao buscar dados da API: {str(e)}")
+        return None
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/api/dados/<tipo>')
+def get_dados(tipo):
+    try:
+        resultados = get_all_results()
+        if not resultados:
+            return jsonify({"error": "Não foi possível obter dados da API"}), 500
+
+        total_concursos = len(resultados)
+        frequencias = {
+            'col1': defaultdict(int),
+            'col2': defaultdict(int),
+            'col3': defaultdict(int),
+            'col4': defaultdict(int),
+            'col5': defaultdict(int),
+            'col6': defaultdict(int)
+        }
+        ultimos_jogos_sorteio = []
+        ultimos_jogos_crescente = []
+        frequencia_geral = defaultdict(int)
+
+        # Processa cada resultado
+        for resultado in resultados:
+            if 'dezenasOrdemSorteio' in resultado:
+                # Converte números para inteiros
+                nums_sorteio = [int(n) for n in resultado['dezenasOrdemSorteio']]
+                nums_crescente = sorted(nums_sorteio)  # Ordena para ordem crescente
+                
+                # Guarda últimos jogos em ambas as ordens
+                ultimos_jogos_sorteio.append(nums_sorteio)
+                ultimos_jogos_crescente.append(nums_crescente)
+                
+                # Conta frequências baseado no tipo solicitado
+                numeros = nums_sorteio if tipo == 'dezenasOrdemSorteio' else nums_crescente
+                for pos, num in enumerate(numeros):
+                    frequencias[f'col{pos+1}'][num] += 1
+                    frequencia_geral[num] += 1
+
+        # Processa top 10 por coluna
+        top_frequencias = {}
+        for coluna, contagem in frequencias.items():
+            ordenado = sorted(
+                [{"numero": num, "frequencia": freq} 
+                 for num, freq in contagem.items()],
+                key=lambda x: (-x["frequencia"], x["numero"])
+            )
+            top_frequencias[coluna] = ordenado[:10]
+
+        # Top 10 geral
+        top10_geral = sorted(
+            [{"numero": num, "frequencia": freq} 
+             for num, freq in frequencia_geral.items()],
+            key=lambda x: (-x["frequencia"], x["numero"])
+        )[:10]
+
+        # Inverte a ordem dos últimos jogos para mostrar mais recentes primeiro
+        ultimos_jogos_sorteio.reverse()
+        ultimos_jogos_crescente.reverse()
+
+        return jsonify({
+            "frequencias": top_frequencias,
+            "totalConcursos": total_concursos,
+            "ultimosJogos": {
+                "ordemSorteio": ultimos_jogos_sorteio[:10],
+                "ordemCrescente": ultimos_jogos_crescente[:10]
+            },
+            "top10Geral": top10_geral
+        })
+
+    except Exception as e:
+        print(f"Erro ao processar dados: {str(e)}")
+        return jsonify({"error": f"Erro ao processar dados: {str(e)}"}), 500
+
+if __name__ == '__main__':
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port, debug=True)
+	
+	// Variáveis globais
+let tipoAtual = "dezenasOrdemSorteio";
+let isLoading = false;
+
+// Funções utilitárias
+function formatNumber(num) {
+    return num.toString().padStart(2, '0');
+}
+
+function atualizarTipoOrdemTexto() {
+    const textoOrdem = tipoAtual === "dezenasOrdemSorteio" ? "Ordem do Sorteio" : "Ordem Crescente";
+    document.getElementById("tipoOrdemAtual").textContent = textoOrdem;
+}
+
+function atualizarBotao(isLoading) {
+    const botao = document.getElementById("toggleTipo");
+    if (botao) {
+        botao.disabled = isLoading;
+        botao.textContent = isLoading ? "Alterando Ordem..." : "Alternar Ordem";
+    }
+}
+
+// Funções de criação de elementos
+function criarTop10Geral(dados) {
+    const container = document.getElementById('top10Geral');
+    if (!container || !dados) return;
+
+    const html = dados.map((item, index) => `
+        <div class="numero-item ${index < 3 ? 'numero-destaque' : ''}">
+            <span>${index + 1}º - Número ${formatNumber(item.numero)}</span>
+            <span>${item.frequencia}x</span>
+        </div>
+    `).join('');
+    
+    container.innerHTML = html;
+}
+
+function criarTabelaJogos(jogos, elementId) {
+    const container = document.getElementById(elementId);
+    if (!container || !jogos) return;
+
+    const table = document.createElement('table');
+    table.className = 'tabela';
+
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    ['Concurso', '1ª', '2ª', '3ª', '4ª', '5ª', '6ª'].forEach(texto => {
+        const th = document.createElement('th');
+        th.textContent = texto;
+        headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    jogos.forEach((jogo, index) => {
+        const row = document.createElement('tr');
+        
+        const tdConcurso = document.createElement('td');
+        tdConcurso.textContent = jogos.length - index;
+        row.appendChild(tdConcurso);
+
+        jogo.forEach(numero => {
+            const td = document.createElement('td');
+            td.textContent = formatNumber(numero);
+            row.appendChild(td);
+        });
+        tbody.appendChild(row);
+    });
+
+    table.appendChild(tbody);
+    container.innerHTML = '';
+    container.appendChild(table);
+}
+
+// Função principal de atualização
+async function atualizarDados() {
+    if (isLoading) return;
+    
+    isLoading = true;
+    atualizarBotao(true);
+    
+    const elementosParaAtualizar = document.querySelectorAll('.numeros, .tabela, #top10Geral');
+    elementosParaAtualizar.forEach(el => {
+        el.innerHTML = '<div class="loading">Carregando dados...</div>';
+    });
+
+    try {
+        const response = await fetch(`/api/dados/${tipoAtual}`);
+        if (!response.ok) {
+            throw new Error(`Erro HTTP: ${response.status}`);
+        }
+        const data = await response.json();
+        
+        if (data.error) {
+            throw new Error(data.error);
+        }
+
+        // Atualiza total de concursos
+        const totalConcursosElement = document.getElementById("totalConcursos");
+        if (totalConcursosElement) {
+            totalConcursosElement.value = data.totalConcursos || 0;
+        }
+        
+        // Atualiza frequências por coluna
+        if (data.frequencias) {
+            Object.entries(data.frequencias).forEach(([coluna, numeros]) => {
+                const elemento = document.getElementById(coluna);
+                if (elemento && Array.isArray(numeros)) {
+                    elemento.innerHTML = numeros
+                        .map((item, index) => `
+                            <div class="numero-item ${index < 3 ? 'numero-destaque' : ''}">
+                                <span>Número ${formatNumber(item.numero)}</span>
+                                <span>${item.frequencia}x</span>
+                            </div>
+                        `)
+                        .join("");
+                }
+            });
+        }
+
+        // Atualiza últimos jogos e top 10
+        if (data.ultimosJogos?.ordemSorteio) {
+            criarTabelaJogos(data.ultimosJogos.ordemSorteio, 'ultimosJogosSorteio');
+        }
+        if (data.ultimosJogos?.ordemCrescente) {
+            criarTabelaJogos(data.ultimosJogos.ordemCrescente, 'ultimosJogosCrescente');
+        }
+        if (data.top10Geral) {
+            criarTop10Geral(data.top10Geral);
+        }
+
+    } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+        elementosParaAtualizar.forEach(el => {
+            el.innerHTML = `<div class="error">Erro ao carregar dados: ${error.message}</div>`;
+        });
+    } finally {
+        isLoading = false;
+        atualizarBotao(false);
+    }
+}
+
+// Inicialização e eventos
+document.addEventListener('DOMContentLoaded', () => {
+    atualizarTipoOrdemTexto();
+    atualizarDados();
+
+    // Adiciona evento ao botão
+    const botao = document.getElementById("toggleTipo");
+    if (botao) {
+        botao.addEventListener("click", () => {
+            tipoAtual = tipoAtual === "dezenasOrdemSorteio" ? "dezenas" : "dezenasOrdemSorteio";
+            atualizarTipoOrdemTexto();
+            atualizarDados();
+        });
+    }
+});
+
+// Atualização automática
+setInterval(atualizarDados, 5 * 60 * 1000);
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Análise Mega Sena - Frequência por Posição</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Análise de Frequência por Posição - Mega Sena</h1>
+
+        <PRE>ARRUMAR ==> 
+            Últimos Jogos (Ordem Crescente) onde os jogos deverão vir das posições 1,2,3,4,5 e 6.
+            O mesmo deverá ser feito para Últimos Jogos (Ordem do Sorteio).
+        </PRE>
+
+        <div class="instrucaoes">
+            <h2>Instruções de uso:</h2>
+            <ol>
+                <li>O último concurso será carregado automaticamente.</li>
+                <li>Voçe verá qual numeros foi mais sorteado na coluna.</li>
+                <li>Voçe poderá alternar entre vizualize as colunas por (Ordem de sortei) ou (Ordem Crescente).</li>
+                <li>Faça o download do Últimos Jogos (Ordem do Sorteio) ou Últimos Jogos (Ordem Crescente).</li>
+            </ol>
+        </div><br />
+        
+        <!-- Controles principais -->
+        <div class="controles">
+            <div class="total-concursos">
+                <label>Total de Concursos:</label>
+                <input type="text" id="totalConcursos" readonly>
+            </div>
+            <div class="ordem-atual">
+                <span>Ordem atual: </span>
+                <span id="tipoOrdemAtual" class="ordem-destaque">Ordem do Sorteio</span>
+            </div>
+            <button id="toggleTipo">Alternar Ordem</button>
+        </div>
+
+        <!-- Grid principal de frequências -->
+        <div class="colunas">
+            <div class="col-container">
+                <h3>1ª Posição</h3>
+                <div id="col1" class="numeros"></div>
+            </div>
+            <div class="col-container">
+                <h3>2ª Posição</h3>
+                <div id="col2" class="numeros"></div>
+            </div>
+            <div class="col-container">
+                <h3>3ª Posição</h3>
+                <div id="col3" class="numeros"></div>
+            </div>
+            <div class="col-container">
+                <h3>4ª Posição</h3>
+                <div id="col4" class="numeros"></div>
+            </div>
+            <div class="col-container">
+                <h3>5ª Posição</h3>
+                <div id="col5" class="numeros"></div>
+            </div>
+            <div class="col-container">
+                <h3>6ª Posição</h3>
+                <div id="col6" class="numeros"></div>
+            </div>
+        </div>
+
+        <!-- Últimos jogos -->
+        <div class="tabelas-container">
+            <div class="tabela-jogos">
+                <h3>Últimos Jogos (Ordem do Sorteio)</h3>
+                <div id="ultimosJogosSorteio" class="tabela"></div>
+            </div>
+            <div class="tabela-jogos">
+                <h3>Últimos Jogos (Ordem Crescente)</h3>
+                <div id="ultimosJogosCrescente" class="tabela"></div>
+            </div>
+        </div>
+
+        <!-- Estatísticas -->
+        <div class="estatisticas-container">
+            <h2>Estatísticas</h2>
+            <div class="matriz-frequencia" id="matrizFrequencia">
+                <!-- Preenchido via JavaScript -->
+            </div>
+            <div class="top10-geral">
+                <h3>Top 10 Geral</h3>
+                <div id="top10Geral"></div>
+            </div>
+        </div>
+    </div>
+    <footer>Feito por: <i>Márcio Fernando Maia -  Todos os direitos reservado - 2025</footer>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+
+</body>
+</html>
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* Controles superiores */
+.controles {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    margin: 20px 0;
+    padding: 15px;
+    background-color: #f0f8f4;
+    border-radius: 5px;
+}
+
+.total-concursos {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.total-concursos label {
+    font-weight: bold;
+    color: #209869;
+}
+
+.total-concursos input {
+    width: 80px;
+    padding: 8px;
+    border: 2px solid #209869;
+    border-radius: 4px;
+    font-size: 16px;
+    font-weight: bold;
+    text-align: center;
+    color: #209869;
+    background-color: white;
+}
+
+/* Grid principal */
+.colunas {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.col-container {
+    padding: 15px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #f5f5f5;
+}
+
+/* Estilo dos números */
+.numero-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background-color: #fff;
+    border-radius: 3px;
+    transition: all 0.3s;
+    margin-bottom: 5px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.numero-item:hover {
+    background-color: #209869;
+    color: white;
+    transform: scale(1.02);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+/* Tabelas de jogos */
+.tabelas-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin: 30px 0;
+}
+
+.tabela-jogos {
+    background-color: #f5f5f5;
+    padding: 20px;
+    border-radius: 5px;
+}
+
+.tabela {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.tabela th, .tabela td {
+    padding: 8px;
+    text-align: center;
+    border: 1px solid #ddd;
+    background-color: white;
+}
+
+.tabela th {
+    background-color: #209869;
+    color: white;
+}
+
+/* Estatísticas */
+.estatisticas-container {
+    margin-top: 30px;
+    padding: 20px;
+    background-color: #f5f5f5;
+    border-radius: 5px;
+}
+
+.matriz-frequencia {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 10px;
+    margin: 20px 0;
+}
+
+.matriz-cell {
+    background-color: white;
+    padding: 8px;
+    text-align: center;
+    border-radius: 3px;
+    font-size: 14px;
+}
+
+.top10-geral {
+    margin-top: 20px;
+    background-color: white;
+    padding: 20px;
+    border-radius: 5px;
+}
+
+/* Elementos comuns */
+button {
+    padding: 10px 20px;
+    font-size: 16px;
+    background-color: #209869;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s;
+    min-width: 150px;
+}
+
+button:hover {
+    background-color: #1a7f57;
+}
+
+button:disabled {
+    background-color: #cccccc;
+    cursor: wait;
+}
+
+h1, h2, h3 {
+    color: #209869;
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+.loading {
+    text-align: center;
+    padding: 20px;
+    color: #666;
+}
+pre{
+    text-align: center;
+    color: red;
+}
+.instrucaoes{
+    background-color: #f9f9f9; /* Fundo cinza claro */
+    border-radius: 12px; /* Bordas arredondadas */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Sombra leve */
+    padding: 20px; /* Espaçamento interno */
+    text-align: left; /* Centraliza o texto */
+    font-family: Arial, sans-serif; /* Fonte padrão */
+    color: #333; /* Cor do texto */
+    line-height: 35px;
+}
+footer {
+    color: #161515;
+    text-align: center;
+    padding: 5px;
+    margin-bottom: auto;
+    margin-top: 10px; /* Espaço acima do rodapé */
+ }
+
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .controles {
+        flex-direction: column;
+    }
+
+    .colunas {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    }
+}
+
+/* Destaque para números mais frequentes */
+.numero-destaque {
+    background-color: #e8f5e9;
+    border-left: 4px solid #209869;
+}
+
+/* Estilo para ordem atual */
+.ordem-atual {
+    text-align: center;
+    padding: 10px;
+    background-color: white;
+    border-radius: 5px;
+    font-size: 16px;
+}
+
+.ordem-destaque {
+    font-weight: bold;
+    color: #209869;
+    margin-left: 5px;
+}

@@ -189,7 +189,26 @@ footer {
     margin-bottom: auto;
     margin-top: 10px; /* Espaço acima do rodapé */
  }
+.ultimo-resultado {
+    background-color: #f0f8f4;
+    padding: 20px;
+    margin: 20px 0;
+    border-radius: 5px;
+    text-align: center;
+}
 
+.destaque-sorteio {
+    font-size: 24px;
+    font-weight: bold;
+    color: #209869;
+    margin: 10px 0;
+}
+
+.info-atualizacao {
+    font-size: 12px;
+    color: #666;
+    margin-top: 5px;
+}
 
 /* Responsividade */
 @media (max-width: 768px) {
