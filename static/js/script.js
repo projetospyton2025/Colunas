@@ -134,6 +134,11 @@ async function atualizarDados() {
 			criarTabelaFrequencia(data.matrizFrequencia);
 		}
 		
+		if (data.jogosSugeridos) {
+            criarTabelaJogos(data.jogosSugeridos.ordemSorteio, 'jogosSugeridosSorteio');
+            criarTabelaJogos(data.jogosSugeridos.ordemCrescente, 'jogosSugeridosCrescente');
+        }
+		
         // Atualiza último resultado
         if (data.ultimoResultado) {
             const ultimoSorteio = document.getElementById('ultimoSorteio');

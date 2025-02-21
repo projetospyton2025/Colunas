@@ -102,6 +102,10 @@ def get_dados(tipo):
         
         # Adiciona a matriz de frequência completa
         matriz_frequencia = criar_matriz_frequencia(resultados, tipo)
+       
+       # Gera jogos sugeridos baseados nas frequências
+        jogos_sugeridos = gerar_jogos_mais_frequentes(top_frequencias)
+
         
         return jsonify({
             "frequencias": top_frequencias,
@@ -112,7 +116,8 @@ def get_dados(tipo):
             },
             "top10Geral": top10_geral,
             "ultimoResultado": ultimo_resultado,  # Adicionado último resultado conforme codigo2
-            "matrizFrequencia": matriz_frequencia  # Adicione esta linha
+            "matrizFrequencia": matriz_frequencia,  # Adicione esta linha
+            "jogosSugeridos": jogos_sugeridos  # Adiciona os jogos sugeridos
         })
 
     except Exception as e:
@@ -147,7 +152,36 @@ def criar_matriz_frequencia(resultados, tipo):
     
     return matriz_formatada
         
+def gerar_jogos_mais_frequentes(top_frequencias):
+    """Gera jogos baseados nos números mais frequentes de cada coluna"""
+    jogos_ordem_sorteio = []
+    jogos_ordem_crescente = []
+    
+    # Pega os números mais frequentes de cada coluna
+    numeros_frequentes = {
+        f'col{i+1}': [item["numero"] for item in dados[:3]]  # Pega os 3 mais frequentes
+        for i, (col, dados) in enumerate(top_frequencias.items())
+    }
+    
+    # Gera jogos com os números mais frequentes
+    for i in range(min(10, len(numeros_frequentes['col1']))):
+        jogo = [
+            numeros_frequentes[f'col{pos+1}'][min(i, len(numeros_frequentes[f'col{pos+1}'])-1)]
+            for pos in range(6)
+        ]
+        jogo_crescente = sorted(jogo)
         
+        # Adiciona apenas se ainda não existe
+        if jogo_crescente not in jogos_ordem_crescente:
+            jogos_ordem_sorteio.append(jogo)
+            jogos_ordem_crescente.append(jogo_crescente)
+    
+    return {
+        'ordemSorteio': jogos_ordem_sorteio,
+        'ordemCrescente': jogos_ordem_crescente
+    }
+
+
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))

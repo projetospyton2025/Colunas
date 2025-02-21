@@ -45,6 +45,7 @@ d-----        20/02/2025     15:05                venv
 ------        21/02/2025     05:53            159 requirements.txt
 ------        21/02/2025     05:49         946795 Colunas-main.zip
 
+
 from flask import Flask, render_template, jsonify
 import requests
 from collections import defaultdict
@@ -158,32 +159,27 @@ def get_dados(tipo):
                 "ordemCrescente": ultimos_jogos_crescente[:10]
             },
             "top10Geral": top10_geral,
-            "ultimoResultado": ultimo_resultado  # Adicionado último resultado conforme codigo2
+            "ultimoResultado": ultimo_resultado,  # Adicionado último resultado conforme codigo2
+            "matrizFrequencia": matriz_frequencia  # Adicione esta linha
         })
 
     except Exception as e:
         print(f"Erro ao processar dados: {str(e)}")
         return jsonify({"error": f"Erro ao processar dados: {str(e)}"}), 500
         
-        
-        
-        
-        
 def criar_matriz_frequencia(resultados, tipo):
     """
-    Cria uma matriz de frequência completa (60x6) mostrando quantas vezes
-    cada número apareceu em cada posição
+        Cria uma matriz de frequência que respeita a ordem crescente dos números
     """
     # Inicializa matriz 60x6 com zeros
     matriz = [[0 for _ in range(6)] for _ in range(60)]
     
     for resultado in resultados:
         if 'dezenasOrdemSorteio' in resultado:
-            # Pega os números dependendo do tipo (sorteio ou crescente)
-            nums_sorteio = [int(n) for n in resultado['dezenasOrdemSorteio']]
-            numeros = nums_sorteio if tipo == 'dezenasOrdemSorteio' else sorted(nums_sorteio)
+            # Importante: Sempre usar ordem crescente aqui
+            numeros = sorted([int(n) for n in resultado['dezenasOrdemSorteio']])
             
-            # Conta frequência na posição específica
+            # Agora sim conta a frequência na posição correta
             for pos, num in enumerate(numeros):
                 matriz[num-1][pos] += 1
     
@@ -197,10 +193,7 @@ def criar_matriz_frequencia(resultados, tipo):
         }
         matriz_formatada.append(linha)
     
-    # Ordena por total de ocorrências
-    matriz_formatada.sort(key=lambda x: (-x['total'], x['numero']))
-    
-    return matriz_formatada   
+    return matriz_formatada
         
         
 
@@ -208,7 +201,317 @@ if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port, debug=True)
 	
-	<!DOCTYPE html>
+	// Variáveis globais
+let tipoAtual = "dezenasOrdemSorteio";
+let isLoading = false;
+
+// Funções utilitárias
+function formatNumber(num) {
+    return num.toString().padStart(2, '0');
+}
+
+function atualizarTipoOrdemTexto() {
+    const textoOrdem = tipoAtual === "dezenasOrdemSorteio" ? "Ordem do Sorteio" : "Ordem Crescente";
+    document.getElementById("tipoOrdemAtual").textContent = textoOrdem;
+}
+
+function atualizarBotao(isLoading) {
+    const botao = document.getElementById("toggleTipo");
+    if (botao) {
+        botao.disabled = isLoading;
+        botao.textContent = isLoading ? "Alterando Ordem..." : "Alternar Ordem";
+    }
+}
+
+// Funções de criação de elementos
+function criarTop10Geral(dados) {
+    const container = document.getElementById('top10Geral');
+    if (!container || !dados) return;
+
+    const html = dados.map((item, index) => `
+        <div class="numero-item ${index < 3 ? 'numero-destaque' : ''}">
+            <span>${index + 1}º - Número ${formatNumber(item.numero)}</span>
+            <span>${item.frequencia}x</span>
+        </div>
+    `).join('');
+    
+    container.innerHTML = html;
+}
+
+function criarTabelaJogos(jogos, elementId) {
+    const container = document.getElementById(elementId);
+    if (!container || !jogos) return;
+
+    const table = document.createElement('table');
+    table.className = 'tabela';
+
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    ['Concurso', '1ª', '2ª', '3ª', '4ª', '5ª', '6ª'].forEach(texto => {
+        const th = document.createElement('th');
+        th.textContent = texto;
+        headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    jogos.forEach((jogo, index) => {
+        const row = document.createElement('tr');
+        
+        const tdConcurso = document.createElement('td');
+        tdConcurso.textContent = jogos.length - index;
+        row.appendChild(tdConcurso);
+
+        jogo.forEach(numero => {
+            const td = document.createElement('td');
+            td.textContent = formatNumber(numero);
+            row.appendChild(td);
+        });
+        tbody.appendChild(row);
+    });
+
+    table.appendChild(tbody);
+    container.innerHTML = '';
+    container.appendChild(table);
+}
+
+// Função principal de atualização
+async function atualizarDados() {
+    if (isLoading) return;
+    
+    isLoading = true;
+    atualizarBotao(true);
+    
+    const elementosParaAtualizar = document.querySelectorAll('.numeros, .tabela, #top10Geral, #ultimoSorteio, #matrizFrequencia');
+    elementosParaAtualizar.forEach(el => {
+        el.innerHTML = '<div class="loading">Carregando dados...</div>';
+    });
+
+    try {
+        const response = await fetch(`/api/dados/${tipoAtual}`);
+        if (!response.ok) {
+            throw new Error(`Erro HTTP: ${response.status}`);
+        }
+        const data = await response.json();
+        
+        if (data.error) {
+            throw new Error(data.error);
+        }
+
+        // Atualiza total de concursos
+        const totalConcursosElement = document.getElementById("totalConcursos");
+        if (totalConcursosElement) {
+            totalConcursosElement.value = data.totalConcursos || 0;
+        }
+        
+        // Atualiza frequências por coluna
+        if (data.frequencias) {
+            Object.entries(data.frequencias).forEach(([coluna, numeros]) => {
+                const elemento = document.getElementById(coluna);
+                if (elemento && Array.isArray(numeros)) {
+                    elemento.innerHTML = numeros
+                        .map((item, index) => `
+                            <div class="numero-item ${index < 3 ? 'numero-destaque' : ''}">
+                                <span>Número ${formatNumber(item.numero)}</span>
+                                <span>${item.frequencia}x</span>
+                            </div>
+                        `)
+                        .join("");
+                }
+            });
+        }
+
+        // Atualiza últimos jogos e top 10
+        if (data.ultimosJogos?.ordemSorteio) {
+            criarTabelaJogos(data.ultimosJogos.ordemSorteio, 'ultimosJogosSorteio');
+        }
+        if (data.ultimosJogos?.ordemCrescente) {
+            criarTabelaJogos(data.ultimosJogos.ordemCrescente, 'ultimosJogosCrescente');
+        }
+        if (data.top10Geral) {
+            criarTop10Geral(data.top10Geral);
+        }
+
+		if (data.matrizFrequencia) {
+			criarTabelaFrequencia(data.matrizFrequencia);
+		}
+		
+        // Atualiza último resultado
+        if (data.ultimoResultado) {
+            const ultimoSorteio = document.getElementById('ultimoSorteio');
+            const dataAtualizacao = document.getElementById('dataAtualizacao');
+            
+            ultimoSorteio.innerHTML = `
+                Concurso ${data.ultimoResultado.concurso}<br>
+                Números: ${data.ultimoResultado.dezenasOrdemSorteio.join(' - ')}
+            `;
+            
+            dataAtualizacao.textContent = `Última atualização: ${new Date().toLocaleString()}`;
+        }
+    } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+        elementosParaAtualizar.forEach(el => {
+            el.innerHTML = `<div class="error">Erro ao carregar dados: ${error.message}</div>`;
+        });
+    } finally {
+        isLoading = false;
+        atualizarBotao(false);
+    }
+}
+
+// Atualizar a cada 5 minutos
+setInterval(atualizarDados, 5 * 60 * 1000);
+
+// Chamar imediatamente quando a página carregar
+document.addEventListener('DOMContentLoaded', atualizarDados);
+
+
+
+// Inicialização e eventos
+document.addEventListener('DOMContentLoaded', () => {
+    atualizarTipoOrdemTexto();
+    atualizarDados();
+
+    // Adiciona evento ao botão
+    const botao = document.getElementById("toggleTipo");
+    if (botao) {
+        botao.addEventListener("click", () => {
+            tipoAtual = tipoAtual === "dezenasOrdemSorteio" ? "dezenas" : "dezenasOrdemSorteio";
+            atualizarTipoOrdemTexto();
+            atualizarDados();
+        });
+    }
+});
+
+
+// function criarTabelaFrequencia(dados) {
+//     const container = document.getElementById('matrizFrequencia');
+//     if (!container || !dados) return;
+
+//     const table = document.createElement('table');
+//     table.className = 'tabela-matriz';
+
+//     // Cabeçalho
+//     const thead = document.createElement('thead');
+//     const headerRow = document.createElement('tr');
+//     ['Número', '1ª', '2ª', '3ª', '4ª', '5ª', '6ª', 'Total'].forEach(texto => {
+//         const th = document.createElement('th');
+//         th.textContent = texto;
+//         headerRow.appendChild(th);
+//     });
+//     thead.appendChild(headerRow);
+//     table.appendChild(thead);
+
+//     // Corpo da tabela
+//     const tbody = document.createElement('tbody');
+//     dados.forEach(linha => {
+//         const row = document.createElement('tr');
+        
+//         // Número
+//         const tdNum = document.createElement('td');
+//         tdNum.textContent = formatNumber(linha.numero);
+//         row.appendChild(tdNum);
+        
+//         // Frequências por coluna
+//         linha.frequencias.forEach(freq => {
+//             const td = document.createElement('td');
+//             td.textContent = freq;
+//             td.className = freq > 0 ? 'tem-ocorrencia' : '';
+//             row.appendChild(td);
+//         });
+        
+//         // Total
+//         const tdTotal = document.createElement('td');
+//         tdTotal.textContent = linha.total;
+//         tdTotal.className = 'total';
+//         row.appendChild(tdTotal);
+        
+//         tbody.appendChild(row);
+//     });
+
+//     table.appendChild(tbody);
+//     container.innerHTML = '';
+//     container.appendChild(table);
+// }
+
+function criarTabelaFrequencia(dados) {
+    const container = document.getElementById('matrizFrequencia');
+    if (!container || !dados) return;
+
+    // Encontra o maior valor de cada coluna
+    const maioresPorColuna = [0, 0, 0, 0, 0, 0];
+    dados.forEach(linha => {
+        linha.frequencias.forEach((freq, colIndex) => {
+            if (freq > maioresPorColuna[colIndex]) {
+                maioresPorColuna[colIndex] = freq;
+            }
+        });
+    });
+
+    const table = document.createElement('table');
+    table.className = 'tabela-matriz';
+
+    // Cabeçalho
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    ['Número', '1ª Col', '2ª Col', '3ª Col', '4ª Col', '5ª Col', '6ª Col', 'Total'].forEach(texto => {
+        const th = document.createElement('th');
+        th.textContent = texto;
+        th.style.padding = '8px 15px';
+        headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    // Corpo da tabela
+    const tbody = document.createElement('tbody');
+    dados.forEach(linha => {
+        const row = document.createElement('tr');
+        
+        // Número com formatação
+        const tdNum = document.createElement('td');
+        tdNum.textContent = formatNumber(linha.numero);
+        tdNum.style.fontWeight = 'bold';
+        row.appendChild(tdNum);
+        
+        // Frequências por coluna
+        linha.frequencias.forEach((freq, colIndex) => {
+            const td = document.createElement('td');
+            td.textContent = freq;
+            
+            // Aplica classes de destaque
+            if (freq > 0) {
+                td.className = 'tem-ocorrencia';
+            }
+            // Destaca o maior valor da coluna
+            if (freq === maioresPorColuna[colIndex] && freq > 0) {
+                td.className = 'maior-valor-coluna';
+            }
+            row.appendChild(td);
+        });
+        
+        // Total
+        const tdTotal = document.createElement('td');
+        tdTotal.textContent = linha.total;
+        tdTotal.className = 'total';
+        row.appendChild(tdTotal);
+        
+        tbody.appendChild(row);
+    });
+
+    table.appendChild(tbody);
+    container.innerHTML = '';
+    container.appendChild(table);
+}
+
+
+
+
+// Atualização automática
+setInterval(atualizarDados, 5 * 60 * 1000);
+
+<!DOCTYPE html>
 <html>
 <head>
     <title>Análise Mega Sena - Frequência por Posição</title>
@@ -294,20 +597,21 @@ if __name__ == '__main__':
         </div>
 
         <!-- Estatísticas -->
-        <div class="estatisticas-container">
-            <h2>Estatísticas</h2>
-            <div class="matriz-frequencia" id="matrizFrequencia">
-                <!-- Preenchido via JavaScript -->
-            </div>
-            <div class="top10-geral">
-                <h3>Top 10 Geral</h3>
-                <div id="top10Geral"></div>
-            </div>
-			<div class="estatisticas-container">
-				<h2>Matriz de Frequência</h2>
-				<div id="matrizFrequencia"></div>
+		<div class="estatisticas-container">
+			<h2>Estatísticas</h2>
+			
+			<!-- Top 10 Geral -->
+			<div class="top10-geral">
+				<h3>Top 10 Geral</h3>
+				<div id="top10Geral"></div>
 			</div>
-        </div>
+			
+			<!-- Matriz de Frequência -->
+			<div class="matriz-container">
+				<h3>Matriz de Frequência</h3>
+				<div id="matrizFrequencia" class="tabela-matriz-container"></div>
+			</div>
+		</div>
     </div>
     <footer>Feito por: <i>Márcio Fernando Maia -  Todos os direitos reservado - 2025</footer>
 
@@ -315,247 +619,6 @@ if __name__ == '__main__':
 
 </body>
 </html>
-
-// Variáveis globais
-let tipoAtual = "dezenasOrdemSorteio";
-let isLoading = false;
-
-// Funções utilitárias
-function formatNumber(num) {
-    return num.toString().padStart(2, '0');
-}
-
-function atualizarTipoOrdemTexto() {
-    const textoOrdem = tipoAtual === "dezenasOrdemSorteio" ? "Ordem do Sorteio" : "Ordem Crescente";
-    document.getElementById("tipoOrdemAtual").textContent = textoOrdem;
-}
-
-function atualizarBotao(isLoading) {
-    const botao = document.getElementById("toggleTipo");
-    if (botao) {
-        botao.disabled = isLoading;
-        botao.textContent = isLoading ? "Alterando Ordem..." : "Alternar Ordem";
-    }
-}
-
-// Funções de criação de elementos
-function criarTop10Geral(dados) {
-    const container = document.getElementById('top10Geral');
-    if (!container || !dados) return;
-
-    const html = dados.map((item, index) => `
-        <div class="numero-item ${index < 3 ? 'numero-destaque' : ''}">
-            <span>${index + 1}º - Número ${formatNumber(item.numero)}</span>
-            <span>${item.frequencia}x</span>
-        </div>
-    `).join('');
-    
-    container.innerHTML = html;
-}
-
-function criarTabelaJogos(jogos, elementId) {
-    const container = document.getElementById(elementId);
-    if (!container || !jogos) return;
-
-    const table = document.createElement('table');
-    table.className = 'tabela';
-
-    const thead = document.createElement('thead');
-    const headerRow = document.createElement('tr');
-    ['Concurso', '1ª', '2ª', '3ª', '4ª', '5ª', '6ª'].forEach(texto => {
-        const th = document.createElement('th');
-        th.textContent = texto;
-        headerRow.appendChild(th);
-    });
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
-
-    const tbody = document.createElement('tbody');
-    jogos.forEach((jogo, index) => {
-        const row = document.createElement('tr');
-        
-        const tdConcurso = document.createElement('td');
-        tdConcurso.textContent = jogos.length - index;
-        row.appendChild(tdConcurso);
-
-        jogo.forEach(numero => {
-            const td = document.createElement('td');
-            td.textContent = formatNumber(numero);
-            row.appendChild(td);
-        });
-        tbody.appendChild(row);
-    });
-
-    table.appendChild(tbody);
-    container.innerHTML = '';
-    container.appendChild(table);
-}
-
-// Função principal de atualização
-async function atualizarDados() {
-    if (isLoading) return;
-    
-    isLoading = true;
-    atualizarBotao(true);
-    
-    const elementosParaAtualizar = document.querySelectorAll('.numeros, .tabela, #top10Geral, #ultimoSorteio');
-    elementosParaAtualizar.forEach(el => {
-        el.innerHTML = '<div class="loading">Carregando dados...</div>';
-    });
-
-    try {
-        const response = await fetch(`/api/dados/${tipoAtual}`);
-        if (!response.ok) {
-            throw new Error(`Erro HTTP: ${response.status}`);
-        }
-        const data = await response.json();
-        
-        if (data.error) {
-            throw new Error(data.error);
-        }
-
-        // Atualiza total de concursos
-        const totalConcursosElement = document.getElementById("totalConcursos");
-        if (totalConcursosElement) {
-            totalConcursosElement.value = data.totalConcursos || 0;
-        }
-        
-        // Atualiza frequências por coluna
-        if (data.frequencias) {
-            Object.entries(data.frequencias).forEach(([coluna, numeros]) => {
-                const elemento = document.getElementById(coluna);
-                if (elemento && Array.isArray(numeros)) {
-                    elemento.innerHTML = numeros
-                        .map((item, index) => `
-                            <div class="numero-item ${index < 3 ? 'numero-destaque' : ''}">
-                                <span>Número ${formatNumber(item.numero)}</span>
-                                <span>${item.frequencia}x</span>
-                            </div>
-                        `)
-                        .join("");
-                }
-            });
-        }
-
-        // Atualiza últimos jogos e top 10
-        if (data.ultimosJogos?.ordemSorteio) {
-            criarTabelaJogos(data.ultimosJogos.ordemSorteio, 'ultimosJogosSorteio');
-        }
-        if (data.ultimosJogos?.ordemCrescente) {
-            criarTabelaJogos(data.ultimosJogos.ordemCrescente, 'ultimosJogosCrescente');
-        }
-        if (data.top10Geral) {
-            criarTop10Geral(data.top10Geral);
-        }
-
-		if (data.matrizFrequencia) {
-            criarTabelaFrequencia(data.matrizFrequencia);
-        }
-		
-        // Atualiza último resultado
-        if (data.ultimoResultado) {
-            const ultimoSorteio = document.getElementById('ultimoSorteio');
-            const dataAtualizacao = document.getElementById('dataAtualizacao');
-            
-            ultimoSorteio.innerHTML = `
-                Concurso ${data.ultimoResultado.concurso}<br>
-                Números: ${data.ultimoResultado.dezenasOrdemSorteio.join(' - ')}
-            `;
-            
-            dataAtualizacao.textContent = `Última atualização: ${new Date().toLocaleString()}`;
-        }
-    } catch (error) {
-        console.error('Erro ao carregar dados:', error);
-        elementosParaAtualizar.forEach(el => {
-            el.innerHTML = `<div class="error">Erro ao carregar dados: ${error.message}</div>`;
-        });
-    } finally {
-        isLoading = false;
-        atualizarBotao(false);
-    }
-}
-
-// Atualizar a cada 5 minutos
-setInterval(atualizarDados, 5 * 60 * 1000);
-
-// Chamar imediatamente quando a página carregar
-document.addEventListener('DOMContentLoaded', atualizarDados);
-
-
-
-// Inicialização e eventos
-document.addEventListener('DOMContentLoaded', () => {
-    atualizarTipoOrdemTexto();
-    atualizarDados();
-
-    // Adiciona evento ao botão
-    const botao = document.getElementById("toggleTipo");
-    if (botao) {
-        botao.addEventListener("click", () => {
-            tipoAtual = tipoAtual === "dezenasOrdemSorteio" ? "dezenas" : "dezenasOrdemSorteio";
-            atualizarTipoOrdemTexto();
-            atualizarDados();
-        });
-    }
-});
-
-
-function criarTabelaFrequencia(dados) {
-    const container = document.getElementById('matrizFrequencia');
-    if (!container || !dados) return;
-
-    const table = document.createElement('table');
-    table.className = 'tabela-matriz';
-
-    // Cabeçalho
-    const thead = document.createElement('thead');
-    const headerRow = document.createElement('tr');
-    ['Número', '1ª', '2ª', '3ª', '4ª', '5ª', '6ª', 'Total'].forEach(texto => {
-        const th = document.createElement('th');
-        th.textContent = texto;
-        headerRow.appendChild(th);
-    });
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
-
-    // Corpo da tabela
-    const tbody = document.createElement('tbody');
-    dados.forEach(linha => {
-        const row = document.createElement('tr');
-        
-        // Número
-        const tdNum = document.createElement('td');
-        tdNum.textContent = formatNumber(linha.numero);
-        row.appendChild(tdNum);
-        
-        // Frequências por coluna
-        linha.frequencias.forEach(freq => {
-            const td = document.createElement('td');
-            td.textContent = freq;
-            td.className = freq > 0 ? 'tem-ocorrencia' : '';
-            row.appendChild(td);
-        });
-        
-        // Total
-        const tdTotal = document.createElement('td');
-        tdTotal.textContent = linha.total;
-        tdTotal.className = 'total';
-        row.appendChild(tdTotal);
-        
-        tbody.appendChild(row);
-    });
-
-    table.appendChild(tbody);
-    container.innerHTML = '';
-    container.appendChild(table);
-}
-
-
-
-
-
-// Atualização automática
-setInterval(atualizarDados, 5 * 60 * 1000);
 
 .container {
     max-width: 1200px;
@@ -801,7 +864,38 @@ footer {
 .tabela-matriz tr:hover {
     background-color: #f5f5f5;
 }
+/* Adicione ao seu arquivo CSS */
+.matriz-container {
+    margin-top: 30px;
+    background-color: white;
+    padding: 20px;
+    border-radius: 5px;
+    overflow-x: auto;
+}
 
+.tabela-matriz-container {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.tabela-matriz {
+    min-width: 800px; /* Garante uma largura mínima para a tabela */
+    width: 100%;
+    margin: 10px 0;
+}
+.maior-valor-coluna {
+    background-color: #209869 !important;
+    color: white !important;
+    font-weight: bold !important;
+    font-size: 16px;
+    border: 2px solid #1a7f57 !important;
+}
+
+.maior-valor-coluna:hover {
+    background-color: #1a7f57 !important;
+    transform: scale(1.05);
+    transition: all 0.3s ease;
+}
 /* Responsividade */
 @media (max-width: 768px) {
     .controles {
@@ -833,3 +927,8 @@ footer {
     color: #209869;
     margin-left: 5px;
 }
+
+.venv
+colunas.ps1
+comit_github_forced.ps1
+Colunas-main.zip
