@@ -45,8 +45,6 @@ d-----        20/02/2025     15:05                venv
 ------        21/02/2025     05:53            159 requirements.txt
 ------        21/02/2025     05:49         946795 Colunas-main.zip
 
-
-
 from flask import Flask, render_template, jsonify
 import requests
 from collections import defaultdict
@@ -58,11 +56,28 @@ def get_all_results():
     """Busca todos os resultados da Mega Sena"""
     try:
         url = "https://loteriascaixa-api.herokuapp.com/api/megasena"
-        response = requests.get(url)
+        response = requests.get(url, timeout=10)  # Adicionado timeout
         response.raise_for_status()
-        return response.json()
-    except Exception as e:
+        dados = response.json()
+        
+        # Validação da resposta
+        if not isinstance(dados, list) or not dados:
+            print("Resposta da API em formato inválido")
+            return None
+            
+        # Ordena os resultados pelo número do concurso
+        dados_ordenados = sorted(dados, key=lambda x: int(x['concurso']), reverse=True)
+        print(f"Último concurso obtido: {dados_ordenados[0]['concurso']}")
+        
+        return dados_ordenados
+    except requests.exceptions.Timeout:
+        print("Timeout ao acessar a API")
+        return None
+    except requests.exceptions.RequestException as e:
         print(f"Erro ao buscar dados da API: {str(e)}")
+        return None
+    except ValueError as e:
+        print(f"Erro ao decodificar JSON: {str(e)}")
         return None
 
 @app.route('/')
@@ -74,9 +89,14 @@ def get_dados(tipo):
     try:
         resultados = get_all_results()
         if not resultados:
+            print("Nenhum resultado obtido da API")  # Adicionado log conforme codigo2
             return jsonify({"error": "Não foi possível obter dados da API"}), 500
 
         total_concursos = len(resultados)
+        
+        # Pega o último resultado conforme codigo2
+        ultimo_resultado = resultados[0] if resultados else None
+
         frequencias = {
             'col1': defaultdict(int),
             'col2': defaultdict(int),
@@ -126,7 +146,10 @@ def get_dados(tipo):
         # Inverte a ordem dos últimos jogos para mostrar mais recentes primeiro
         ultimos_jogos_sorteio.reverse()
         ultimos_jogos_crescente.reverse()
-
+        
+        # Adiciona a matriz de frequência completa
+        matriz_frequencia = criar_matriz_frequencia(resultados, tipo)
+        
         return jsonify({
             "frequencias": top_frequencias,
             "totalConcursos": total_concursos,
@@ -134,18 +157,166 @@ def get_dados(tipo):
                 "ordemSorteio": ultimos_jogos_sorteio[:10],
                 "ordemCrescente": ultimos_jogos_crescente[:10]
             },
-            "top10Geral": top10_geral
+            "top10Geral": top10_geral,
+            "ultimoResultado": ultimo_resultado  # Adicionado último resultado conforme codigo2
         })
 
     except Exception as e:
         print(f"Erro ao processar dados: {str(e)}")
         return jsonify({"error": f"Erro ao processar dados: {str(e)}"}), 500
+        
+        
+        
+        
+        
+def criar_matriz_frequencia(resultados, tipo):
+    """
+    Cria uma matriz de frequência completa (60x6) mostrando quantas vezes
+    cada número apareceu em cada posição
+    """
+    # Inicializa matriz 60x6 com zeros
+    matriz = [[0 for _ in range(6)] for _ in range(60)]
+    
+    for resultado in resultados:
+        if 'dezenasOrdemSorteio' in resultado:
+            # Pega os números dependendo do tipo (sorteio ou crescente)
+            nums_sorteio = [int(n) for n in resultado['dezenasOrdemSorteio']]
+            numeros = nums_sorteio if tipo == 'dezenasOrdemSorteio' else sorted(nums_sorteio)
+            
+            # Conta frequência na posição específica
+            for pos, num in enumerate(numeros):
+                matriz[num-1][pos] += 1
+    
+    # Formata a matriz para retorno
+    matriz_formatada = []
+    for num in range(60):
+        linha = {
+            'numero': num + 1,
+            'frequencias': matriz[num],
+            'total': sum(matriz[num])
+        }
+        matriz_formatada.append(linha)
+    
+    # Ordena por total de ocorrências
+    matriz_formatada.sort(key=lambda x: (-x['total'], x['numero']))
+    
+    return matriz_formatada   
+        
+        
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port, debug=True)
 	
-	// Variáveis globais
+	<!DOCTYPE html>
+<html>
+<head>
+    <title>Análise Mega Sena - Frequência por Posição</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Análise de Frequência por Posição - Mega Sena</h1>
+
+        <PRE>ARRUMAR ==> 
+            Últimos Jogos (Ordem Crescente) onde os jogos deverão vir das posições 1,2,3,4,5 e 6.
+            O mesmo deverá ser feito para Últimos Jogos (Ordem do Sorteio).
+        </PRE>
+
+        <div class="instrucaoes">
+            <h2>Instruções de uso:</h2>
+            <ol>
+                <li>O último concurso será carregado automaticamente.</li>
+                <li>Voçe verá qual numeros foi mais sorteado na coluna.</li>
+                <li>Voçe poderá alternar entre vizualize as colunas por (Ordem de sortei) ou (Ordem Crescente).</li>
+                <li>Faça o download do Últimos Jogos (Ordem do Sorteio) ou Últimos Jogos (Ordem Crescente).</li>
+            </ol>
+        </div><br />
+        
+        <!-- Controles principais -->
+        <div class="controles">
+            <div class="total-concursos">
+                <label>Total de Concursos:</label>
+                <input type="text" id="totalConcursos" readonly>
+            </div>
+            <div class="ordem-atual">
+                <span>Ordem atual: </span>
+                <span id="tipoOrdemAtual" class="ordem-destaque">Ordem do Sorteio</span>
+            </div>
+            <button id="toggleTipo">Alternar Ordem</button>
+        </div>
+		
+		<div class="ultimo-resultado">
+			<h3>Último Resultado</h3>
+			<div id="ultimoSorteio" class="destaque-sorteio"></div>
+			<div id="dataAtualizacao" class="info-atualizacao"></div>
+		</div>
+		
+
+        <!-- Grid principal de frequências -->
+        <div class="colunas">
+            <div class="col-container">
+                <h3>1ª Posição</h3>
+                <div id="col1" class="numeros"></div>
+            </div>
+            <div class="col-container">
+                <h3>2ª Posição</h3>
+                <div id="col2" class="numeros"></div>
+            </div>
+            <div class="col-container">
+                <h3>3ª Posição</h3>
+                <div id="col3" class="numeros"></div>
+            </div>
+            <div class="col-container">
+                <h3>4ª Posição</h3>
+                <div id="col4" class="numeros"></div>
+            </div>
+            <div class="col-container">
+                <h3>5ª Posição</h3>
+                <div id="col5" class="numeros"></div>
+            </div>
+            <div class="col-container">
+                <h3>6ª Posição</h3>
+                <div id="col6" class="numeros"></div>
+            </div>
+        </div>
+
+        <!-- Últimos jogos -->
+        <div class="tabelas-container">
+            <div class="tabela-jogos">
+                <h3>Últimos Jogos (Ordem do Sorteio)</h3>
+                <div id="ultimosJogosSorteio" class="tabela"></div>
+            </div>
+            <div class="tabela-jogos">
+                <h3>Últimos Jogos (Ordem Crescente)</h3>
+                <div id="ultimosJogosCrescente" class="tabela"></div>
+            </div>
+        </div>
+
+        <!-- Estatísticas -->
+        <div class="estatisticas-container">
+            <h2>Estatísticas</h2>
+            <div class="matriz-frequencia" id="matrizFrequencia">
+                <!-- Preenchido via JavaScript -->
+            </div>
+            <div class="top10-geral">
+                <h3>Top 10 Geral</h3>
+                <div id="top10Geral"></div>
+            </div>
+			<div class="estatisticas-container">
+				<h2>Matriz de Frequência</h2>
+				<div id="matrizFrequencia"></div>
+			</div>
+        </div>
+    </div>
+    <footer>Feito por: <i>Márcio Fernando Maia -  Todos os direitos reservado - 2025</footer>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+
+</body>
+</html>
+
+// Variáveis globais
 let tipoAtual = "dezenasOrdemSorteio";
 let isLoading = false;
 
@@ -227,7 +398,7 @@ async function atualizarDados() {
     isLoading = true;
     atualizarBotao(true);
     
-    const elementosParaAtualizar = document.querySelectorAll('.numeros, .tabela, #top10Geral');
+    const elementosParaAtualizar = document.querySelectorAll('.numeros, .tabela, #top10Geral, #ultimoSorteio');
     elementosParaAtualizar.forEach(el => {
         el.innerHTML = '<div class="loading">Carregando dados...</div>';
     });
@@ -277,6 +448,22 @@ async function atualizarDados() {
             criarTop10Geral(data.top10Geral);
         }
 
+		if (data.matrizFrequencia) {
+            criarTabelaFrequencia(data.matrizFrequencia);
+        }
+		
+        // Atualiza último resultado
+        if (data.ultimoResultado) {
+            const ultimoSorteio = document.getElementById('ultimoSorteio');
+            const dataAtualizacao = document.getElementById('dataAtualizacao');
+            
+            ultimoSorteio.innerHTML = `
+                Concurso ${data.ultimoResultado.concurso}<br>
+                Números: ${data.ultimoResultado.dezenasOrdemSorteio.join(' - ')}
+            `;
+            
+            dataAtualizacao.textContent = `Última atualização: ${new Date().toLocaleString()}`;
+        }
     } catch (error) {
         console.error('Erro ao carregar dados:', error);
         elementosParaAtualizar.forEach(el => {
@@ -287,6 +474,14 @@ async function atualizarDados() {
         atualizarBotao(false);
     }
 }
+
+// Atualizar a cada 5 minutos
+setInterval(atualizarDados, 5 * 60 * 1000);
+
+// Chamar imediatamente quando a página carregar
+document.addEventListener('DOMContentLoaded', atualizarDados);
+
+
 
 // Inicialização e eventos
 document.addEventListener('DOMContentLoaded', () => {
@@ -304,105 +499,63 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+
+function criarTabelaFrequencia(dados) {
+    const container = document.getElementById('matrizFrequencia');
+    if (!container || !dados) return;
+
+    const table = document.createElement('table');
+    table.className = 'tabela-matriz';
+
+    // Cabeçalho
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    ['Número', '1ª', '2ª', '3ª', '4ª', '5ª', '6ª', 'Total'].forEach(texto => {
+        const th = document.createElement('th');
+        th.textContent = texto;
+        headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    // Corpo da tabela
+    const tbody = document.createElement('tbody');
+    dados.forEach(linha => {
+        const row = document.createElement('tr');
+        
+        // Número
+        const tdNum = document.createElement('td');
+        tdNum.textContent = formatNumber(linha.numero);
+        row.appendChild(tdNum);
+        
+        // Frequências por coluna
+        linha.frequencias.forEach(freq => {
+            const td = document.createElement('td');
+            td.textContent = freq;
+            td.className = freq > 0 ? 'tem-ocorrencia' : '';
+            row.appendChild(td);
+        });
+        
+        // Total
+        const tdTotal = document.createElement('td');
+        tdTotal.textContent = linha.total;
+        tdTotal.className = 'total';
+        row.appendChild(tdTotal);
+        
+        tbody.appendChild(row);
+    });
+
+    table.appendChild(tbody);
+    container.innerHTML = '';
+    container.appendChild(table);
+}
+
+
+
+
+
 // Atualização automática
 setInterval(atualizarDados, 5 * 60 * 1000);
-
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Análise Mega Sena - Frequência por Posição</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-<body>
-    <div class="container">
-        <h1>Análise de Frequência por Posição - Mega Sena</h1>
-
-        <PRE>ARRUMAR ==> 
-            Últimos Jogos (Ordem Crescente) onde os jogos deverão vir das posições 1,2,3,4,5 e 6.
-            O mesmo deverá ser feito para Últimos Jogos (Ordem do Sorteio).
-        </PRE>
-
-        <div class="instrucaoes">
-            <h2>Instruções de uso:</h2>
-            <ol>
-                <li>O último concurso será carregado automaticamente.</li>
-                <li>Voçe verá qual numeros foi mais sorteado na coluna.</li>
-                <li>Voçe poderá alternar entre vizualize as colunas por (Ordem de sortei) ou (Ordem Crescente).</li>
-                <li>Faça o download do Últimos Jogos (Ordem do Sorteio) ou Últimos Jogos (Ordem Crescente).</li>
-            </ol>
-        </div><br />
-        
-        <!-- Controles principais -->
-        <div class="controles">
-            <div class="total-concursos">
-                <label>Total de Concursos:</label>
-                <input type="text" id="totalConcursos" readonly>
-            </div>
-            <div class="ordem-atual">
-                <span>Ordem atual: </span>
-                <span id="tipoOrdemAtual" class="ordem-destaque">Ordem do Sorteio</span>
-            </div>
-            <button id="toggleTipo">Alternar Ordem</button>
-        </div>
-
-        <!-- Grid principal de frequências -->
-        <div class="colunas">
-            <div class="col-container">
-                <h3>1ª Posição</h3>
-                <div id="col1" class="numeros"></div>
-            </div>
-            <div class="col-container">
-                <h3>2ª Posição</h3>
-                <div id="col2" class="numeros"></div>
-            </div>
-            <div class="col-container">
-                <h3>3ª Posição</h3>
-                <div id="col3" class="numeros"></div>
-            </div>
-            <div class="col-container">
-                <h3>4ª Posição</h3>
-                <div id="col4" class="numeros"></div>
-            </div>
-            <div class="col-container">
-                <h3>5ª Posição</h3>
-                <div id="col5" class="numeros"></div>
-            </div>
-            <div class="col-container">
-                <h3>6ª Posição</h3>
-                <div id="col6" class="numeros"></div>
-            </div>
-        </div>
-
-        <!-- Últimos jogos -->
-        <div class="tabelas-container">
-            <div class="tabela-jogos">
-                <h3>Últimos Jogos (Ordem do Sorteio)</h3>
-                <div id="ultimosJogosSorteio" class="tabela"></div>
-            </div>
-            <div class="tabela-jogos">
-                <h3>Últimos Jogos (Ordem Crescente)</h3>
-                <div id="ultimosJogosCrescente" class="tabela"></div>
-            </div>
-        </div>
-
-        <!-- Estatísticas -->
-        <div class="estatisticas-container">
-            <h2>Estatísticas</h2>
-            <div class="matriz-frequencia" id="matrizFrequencia">
-                <!-- Preenchido via JavaScript -->
-            </div>
-            <div class="top10-geral">
-                <h3>Top 10 Geral</h3>
-                <div id="top10Geral"></div>
-            </div>
-        </div>
-    </div>
-    <footer>Feito por: <i>Márcio Fernando Maia -  Todos os direitos reservado - 2025</footer>
-
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
-
-</body>
-</html>
 
 .container {
     max-width: 1200px;
@@ -595,7 +748,59 @@ footer {
     margin-bottom: auto;
     margin-top: 10px; /* Espaço acima do rodapé */
  }
+.ultimo-resultado {
+    background-color: #f0f8f4;
+    padding: 20px;
+    margin: 20px 0;
+    border-radius: 5px;
+    text-align: center;
+}
 
+.destaque-sorteio {
+    font-size: 24px;
+    font-weight: bold;
+    color: #209869;
+    margin: 10px 0;
+}
+
+.info-atualizacao {
+    font-size: 12px;
+    color: #666;
+    margin-top: 5px;
+}
+.tabela-matriz {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-size: 14px;
+}
+
+.tabela-matriz th,
+.tabela-matriz td {
+    border: 1px solid #ddd;
+    padding: 6px;
+    text-align: center;
+}
+
+.tabela-matriz th {
+    background-color: #209869;
+    color: white;
+}
+
+.tabela-matriz .tem-ocorrencia {
+    background-color: #e8f5e9;
+    font-weight: bold;
+}
+
+.tabela-matriz .total {
+    background-color: #f0f8f4;
+    font-weight: bold;
+    color: #209869;
+}
+
+.tabela-matriz tr:hover {
+    background-color: #f5f5f5;
+}
 
 /* Responsividade */
 @media (max-width: 768px) {

@@ -99,7 +99,10 @@ def get_dados(tipo):
         # Inverte a ordem dos últimos jogos para mostrar mais recentes primeiro
         ultimos_jogos_sorteio.reverse()
         ultimos_jogos_crescente.reverse()
-
+        
+        # Adiciona a matriz de frequência completa
+        matriz_frequencia = criar_matriz_frequencia(resultados, tipo)
+        
         return jsonify({
             "frequencias": top_frequencias,
             "totalConcursos": total_concursos,
@@ -108,12 +111,43 @@ def get_dados(tipo):
                 "ordemCrescente": ultimos_jogos_crescente[:10]
             },
             "top10Geral": top10_geral,
-            "ultimoResultado": ultimo_resultado  # Adicionado último resultado conforme codigo2
+            "ultimoResultado": ultimo_resultado,  # Adicionado último resultado conforme codigo2
+            "matrizFrequencia": matriz_frequencia  # Adicione esta linha
         })
 
     except Exception as e:
         print(f"Erro ao processar dados: {str(e)}")
         return jsonify({"error": f"Erro ao processar dados: {str(e)}"}), 500
+        
+def criar_matriz_frequencia(resultados, tipo):
+    """
+        Cria uma matriz de frequência que respeita a ordem crescente dos números
+    """
+    # Inicializa matriz 60x6 com zeros
+    matriz = [[0 for _ in range(6)] for _ in range(60)]
+    
+    for resultado in resultados:
+        if 'dezenasOrdemSorteio' in resultado:
+            # Importante: Sempre usar ordem crescente aqui
+            numeros = sorted([int(n) for n in resultado['dezenasOrdemSorteio']])
+            
+            # Agora sim conta a frequência na posição correta
+            for pos, num in enumerate(numeros):
+                matriz[num-1][pos] += 1
+    
+    # Formata a matriz para retorno
+    matriz_formatada = []
+    for num in range(60):
+        linha = {
+            'numero': num + 1,
+            'frequencias': matriz[num],
+            'total': sum(matriz[num])
+        }
+        matriz_formatada.append(linha)
+    
+    return matriz_formatada
+        
+        
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))

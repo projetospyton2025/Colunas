@@ -80,7 +80,7 @@ async function atualizarDados() {
     isLoading = true;
     atualizarBotao(true);
     
-    const elementosParaAtualizar = document.querySelectorAll('.numeros, .tabela, #top10Geral, #ultimoSorteio');
+    const elementosParaAtualizar = document.querySelectorAll('.numeros, .tabela, #top10Geral, #ultimoSorteio, #matrizFrequencia');
     elementosParaAtualizar.forEach(el => {
         el.innerHTML = '<div class="loading">Carregando dados...</div>';
     });
@@ -130,6 +130,10 @@ async function atualizarDados() {
             criarTop10Geral(data.top10Geral);
         }
 
+		if (data.matrizFrequencia) {
+			criarTabelaFrequencia(data.matrizFrequencia);
+		}
+		
         // Atualiza último resultado
         if (data.ultimoResultado) {
             const ultimoSorteio = document.getElementById('ultimoSorteio');
@@ -176,6 +180,130 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+
+// function criarTabelaFrequencia(dados) {
+//     const container = document.getElementById('matrizFrequencia');
+//     if (!container || !dados) return;
+
+//     const table = document.createElement('table');
+//     table.className = 'tabela-matriz';
+
+//     // Cabeçalho
+//     const thead = document.createElement('thead');
+//     const headerRow = document.createElement('tr');
+//     ['Número', '1ª', '2ª', '3ª', '4ª', '5ª', '6ª', 'Total'].forEach(texto => {
+//         const th = document.createElement('th');
+//         th.textContent = texto;
+//         headerRow.appendChild(th);
+//     });
+//     thead.appendChild(headerRow);
+//     table.appendChild(thead);
+
+//     // Corpo da tabela
+//     const tbody = document.createElement('tbody');
+//     dados.forEach(linha => {
+//         const row = document.createElement('tr');
+        
+//         // Número
+//         const tdNum = document.createElement('td');
+//         tdNum.textContent = formatNumber(linha.numero);
+//         row.appendChild(tdNum);
+        
+//         // Frequências por coluna
+//         linha.frequencias.forEach(freq => {
+//             const td = document.createElement('td');
+//             td.textContent = freq;
+//             td.className = freq > 0 ? 'tem-ocorrencia' : '';
+//             row.appendChild(td);
+//         });
+        
+//         // Total
+//         const tdTotal = document.createElement('td');
+//         tdTotal.textContent = linha.total;
+//         tdTotal.className = 'total';
+//         row.appendChild(tdTotal);
+        
+//         tbody.appendChild(row);
+//     });
+
+//     table.appendChild(tbody);
+//     container.innerHTML = '';
+//     container.appendChild(table);
+// }
+
+function criarTabelaFrequencia(dados) {
+    const container = document.getElementById('matrizFrequencia');
+    if (!container || !dados) return;
+
+    // Encontra o maior valor de cada coluna
+    const maioresPorColuna = [0, 0, 0, 0, 0, 0];
+    dados.forEach(linha => {
+        linha.frequencias.forEach((freq, colIndex) => {
+            if (freq > maioresPorColuna[colIndex]) {
+                maioresPorColuna[colIndex] = freq;
+            }
+        });
+    });
+
+    const table = document.createElement('table');
+    table.className = 'tabela-matriz';
+
+    // Cabeçalho
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    ['Número', '1ª Col', '2ª Col', '3ª Col', '4ª Col', '5ª Col', '6ª Col', 'Total'].forEach(texto => {
+        const th = document.createElement('th');
+        th.textContent = texto;
+        th.style.padding = '8px 15px';
+        headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    // Corpo da tabela
+    const tbody = document.createElement('tbody');
+    dados.forEach(linha => {
+        const row = document.createElement('tr');
+        
+        // Número com formatação
+        const tdNum = document.createElement('td');
+        tdNum.textContent = formatNumber(linha.numero);
+        tdNum.style.fontWeight = 'bold';
+        row.appendChild(tdNum);
+        
+        // Frequências por coluna
+        linha.frequencias.forEach((freq, colIndex) => {
+            const td = document.createElement('td');
+            td.textContent = freq;
+            
+            // Aplica classes de destaque
+            if (freq > 0) {
+                td.className = 'tem-ocorrencia';
+            }
+            // Destaca o maior valor da coluna
+            if (freq === maioresPorColuna[colIndex] && freq > 0) {
+                td.className = 'maior-valor-coluna';
+            }
+            row.appendChild(td);
+        });
+        
+        // Total
+        const tdTotal = document.createElement('td');
+        tdTotal.textContent = linha.total;
+        tdTotal.className = 'total';
+        row.appendChild(tdTotal);
+        
+        tbody.appendChild(row);
+    });
+
+    table.appendChild(tbody);
+    container.innerHTML = '';
+    container.appendChild(table);
+}
+
+
+
 
 // Atualização automática
 setInterval(atualizarDados, 5 * 60 * 1000);

@@ -209,7 +209,71 @@ footer {
     color: #666;
     margin-top: 5px;
 }
+.tabela-matriz {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-size: 14px;
+}
 
+.tabela-matriz th,
+.tabela-matriz td {
+    border: 1px solid #ddd;
+    padding: 6px;
+    text-align: center;
+}
+
+.tabela-matriz th {
+    background-color: #209869;
+    color: white;
+}
+
+.tabela-matriz .tem-ocorrencia {
+    background-color: #e8f5e9;
+    font-weight: bold;
+}
+
+.tabela-matriz .total {
+    background-color: #f0f8f4;
+    font-weight: bold;
+    color: #209869;
+}
+
+.tabela-matriz tr:hover {
+    background-color: #f5f5f5;
+}
+/* Adicione ao seu arquivo CSS */
+.matriz-container {
+    margin-top: 30px;
+    background-color: white;
+    padding: 20px;
+    border-radius: 5px;
+    overflow-x: auto;
+}
+
+.tabela-matriz-container {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.tabela-matriz {
+    min-width: 800px; /* Garante uma largura mínima para a tabela */
+    width: 100%;
+    margin: 10px 0;
+}
+.maior-valor-coluna {
+    background-color: #209869 !important;
+    color: white !important;
+    font-weight: bold !important;
+    font-size: 16px;
+    border: 2px solid #1a7f57 !important;
+}
+
+.maior-valor-coluna:hover {
+    background-color: #1a7f57 !important;
+    transform: scale(1.05);
+    transition: all 0.3s ease;
+}
 /* Responsividade */
 @media (max-width: 768px) {
     .controles {
