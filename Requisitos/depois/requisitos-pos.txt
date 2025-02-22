@@ -1,3 +1,10 @@
+para esta código em PYTHON vc traz jogos sugeridos correto?
+o primeiro jogo sugerido deve ser baseado no primeiro maior valor em cada posição...
+e alem disso preciso que seja gerado exatamente 10 jogos conforme aparece des informações nas pocisões.. 
+
+
+
+
 Flask==2.0.1
 Werkzeug==2.0.3
 requests==2.31.0
@@ -44,7 +51,6 @@ d-----        20/02/2025     15:05                venv
 ------        02/02/2025     12:51           3463 app.py
 ------        21/02/2025     05:53            159 requirements.txt
 ------        21/02/2025     05:49         946795 Colunas-main.zip
-
 
 from flask import Flask, render_template, jsonify
 import requests
@@ -150,6 +156,10 @@ def get_dados(tipo):
         
         # Adiciona a matriz de frequência completa
         matriz_frequencia = criar_matriz_frequencia(resultados, tipo)
+       
+       # Gera jogos sugeridos baseados nas frequências
+        jogos_sugeridos = gerar_jogos_mais_frequentes(top_frequencias)
+
         
         return jsonify({
             "frequencias": top_frequencias,
@@ -160,7 +170,8 @@ def get_dados(tipo):
             },
             "top10Geral": top10_geral,
             "ultimoResultado": ultimo_resultado,  # Adicionado último resultado conforme codigo2
-            "matrizFrequencia": matriz_frequencia  # Adicione esta linha
+            "matrizFrequencia": matriz_frequencia,  # Adicione esta linha
+            "jogosSugeridos": jogos_sugeridos  # Adiciona os jogos sugeridos
         })
 
     except Exception as e:
@@ -195,7 +206,36 @@ def criar_matriz_frequencia(resultados, tipo):
     
     return matriz_formatada
         
+def gerar_jogos_mais_frequentes(top_frequencias):
+    """Gera jogos baseados nos números mais frequentes de cada coluna"""
+    jogos_ordem_sorteio = []
+    jogos_ordem_crescente = []
+    
+    # Pega os números mais frequentes de cada coluna
+    numeros_frequentes = {
+        f'col{i+1}': [item["numero"] for item in dados[:3]]  # Pega os 3 mais frequentes
+        for i, (col, dados) in enumerate(top_frequencias.items())
+    }
+    
+    # Gera jogos com os números mais frequentes
+    for i in range(min(10, len(numeros_frequentes['col1']))):
+        jogo = [
+            numeros_frequentes[f'col{pos+1}'][min(i, len(numeros_frequentes[f'col{pos+1}'])-1)]
+            for pos in range(6)
+        ]
+        jogo_crescente = sorted(jogo)
         
+        # Adiciona apenas se ainda não existe
+        if jogo_crescente not in jogos_ordem_crescente:
+            jogos_ordem_sorteio.append(jogo)
+            jogos_ordem_crescente.append(jogo_crescente)
+    
+    return {
+        'ordemSorteio': jogos_ordem_sorteio,
+        'ordemCrescente': jogos_ordem_crescente
+    }
+
+
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
@@ -336,6 +376,11 @@ async function atualizarDados() {
 		if (data.matrizFrequencia) {
 			criarTabelaFrequencia(data.matrizFrequencia);
 		}
+		
+		if (data.jogosSugeridos) {
+            criarTabelaJogos(data.jogosSugeridos.ordemSorteio, 'jogosSugeridosSorteio');
+            criarTabelaJogos(data.jogosSugeridos.ordemCrescente, 'jogosSugeridosCrescente');
+        }
 		
         // Atualiza último resultado
         if (data.ultimoResultado) {
@@ -584,7 +629,7 @@ setInterval(atualizarDados, 5 * 60 * 1000);
             </div>
         </div>
 
-        <!-- Últimos jogos -->
+        <!-- Últimos jogos 
         <div class="tabelas-container">
             <div class="tabela-jogos">
                 <h3>Últimos Jogos (Ordem do Sorteio)</h3>
@@ -595,6 +640,18 @@ setInterval(atualizarDados, 5 * 60 * 1000);
                 <div id="ultimosJogosCrescente" class="tabela"></div>
             </div>
         </div>
+		-->
+		<!-- Jogos Sugeridos -->
+		<div class="tabelas-container">
+			<div class="tabela-jogos">
+				<h3>Jogos Sugeridos (Ordem do Sorteio)</h3>
+				<div id="jogosSugeridosSorteio" class="tabela"></div>
+			</div>
+			<div class="tabela-jogos">
+				<h3>Jogos Sugeridos (Ordem Crescente)</h3>
+				<div id="jogosSugeridosCrescente" class="tabela"></div>
+			</div>
+		</div>
 
         <!-- Estatísticas -->
 		<div class="estatisticas-container">
@@ -927,8 +984,3 @@ footer {
     color: #209869;
     margin-left: 5px;
 }
-
-.venv
-colunas.ps1
-comit_github_forced.ps1
-Colunas-main.zip

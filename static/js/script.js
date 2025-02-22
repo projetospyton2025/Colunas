@@ -187,56 +187,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 
-// function criarTabelaFrequencia(dados) {
-//     const container = document.getElementById('matrizFrequencia');
-//     if (!container || !dados) return;
-
-//     const table = document.createElement('table');
-//     table.className = 'tabela-matriz';
-
-//     // Cabeçalho
-//     const thead = document.createElement('thead');
-//     const headerRow = document.createElement('tr');
-//     ['Número', '1ª', '2ª', '3ª', '4ª', '5ª', '6ª', 'Total'].forEach(texto => {
-//         const th = document.createElement('th');
-//         th.textContent = texto;
-//         headerRow.appendChild(th);
-//     });
-//     thead.appendChild(headerRow);
-//     table.appendChild(thead);
-
-//     // Corpo da tabela
-//     const tbody = document.createElement('tbody');
-//     dados.forEach(linha => {
-//         const row = document.createElement('tr');
-        
-//         // Número
-//         const tdNum = document.createElement('td');
-//         tdNum.textContent = formatNumber(linha.numero);
-//         row.appendChild(tdNum);
-        
-//         // Frequências por coluna
-//         linha.frequencias.forEach(freq => {
-//             const td = document.createElement('td');
-//             td.textContent = freq;
-//             td.className = freq > 0 ? 'tem-ocorrencia' : '';
-//             row.appendChild(td);
-//         });
-        
-//         // Total
-//         const tdTotal = document.createElement('td');
-//         tdTotal.textContent = linha.total;
-//         tdTotal.className = 'total';
-//         row.appendChild(tdTotal);
-        
-//         tbody.appendChild(row);
-//     });
-
-//     table.appendChild(tbody);
-//     container.innerHTML = '';
-//     container.appendChild(table);
-// }
-
 function criarTabelaFrequencia(dados) {
     const container = document.getElementById('matrizFrequencia');
     if (!container || !dados) return;
